@@ -36,7 +36,7 @@ def get_genre_idx_map(df):
         genres = df.iloc[i]['genres']
         s.add(str(genres))
 
-    print(f"num combination of genres: {len(s)}") # 266 combinations of genres
+    print(f"num combination of genres: {len(s)}")
 
     genre_to_idx = {}
     for i, genre in enumerate(s):
