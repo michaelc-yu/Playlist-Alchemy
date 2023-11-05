@@ -7,20 +7,54 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
 
+import re
+
 
 word_vectors = helpers.get_word_vectors()
 
 df = helpers.get_df('lyrics_10k.csv')
 
 
-# num_songs = len(df)
-# print(num_songs)
 
-df = df[:50:]
+df = df[:100:]
 num_songs = len(df)
 print(f"only looking at the first {num_songs} songs")
 
-genre_to_idx = helpers.get_genre_idx_map(df)
+
+
+# audio features
+spotify = helpers.authenticate_spotify()
+
+danceability = []
+energy = []
+loudness = []
+tempo = []
+valence = []
+for i in range(num_songs):
+    song_id = df.iloc[i]['song_id'].split(':')[2]
+    audio_features = spotify.audio_features([song_id])[0]
+    # print(audio_features)
+
+    danceability.append(audio_features['danceability'])
+    energy.append(audio_features['energy'])
+    loudness.append(audio_features['loudness'])
+    tempo.append(audio_features['tempo'])
+    valence.append(audio_features['valence'])
+
+min_danceability = np.min(danceability)
+max_danceability = np.max(danceability)
+
+min_energy = np.min(energy)
+max_energy = np.max(energy)
+
+min_loudness = np.min(loudness)
+max_loudness = np.max(loudness)
+
+min_tempo = np.min(tempo)
+max_tempo = np.max(tempo)
+
+min_valence = np.min(valence)
+max_valence = np.max(valence)
 
 
 # set up inputs for all songs
@@ -56,47 +90,69 @@ print(f"inputs shape: {inputs.shape}") # torch.Size([3, 390, 50]) -> 3 songs, 39
 
 
 # set up outputs for all songs
-# TODO: normalize the floats
+# give each song a score on these features, based on how often those words occur / total number of words in genre string
+key_genres = ['blues', 'dance', 'folk', 'hip', 'hop', 'indie', 'jazz', 'k-pop', 'lilith', 'metal', 'pop', 'rap', 'rock', 'soul', 'trap', 'wave']
 outputs = []
 for i in range(num_songs):
     one_output = []
 
     # genres
-    genres = df.iloc[i]['genres']
-    genre_idx = genre_to_idx[str(genres)]
-    one_output.append(genre_idx)
+    song_genres = df.iloc[i]['genres']
+    
+    song_genres = re.split(r'[; ]', song_genres)
+    song_genres = [word for word in song_genres if word in key_genres]
+
+    print(f"genres: {song_genres}")
+
+    for genre in key_genres:
+        if len(song_genres) > 0:
+            ratio = song_genres.count(genre) / len(song_genres)
+            one_output.append(ratio)
+        else:
+            one_output.append(0)
+
 
     # audio features
-    spotify = helpers.authenticate_spotify()
 
     song_id = df.iloc[i]['song_id'].split(':')[2]
     audio_features = spotify.audio_features([song_id])[0]
     # print(audio_features)
 
     danceability = audio_features['danceability']
-    energy = audio_features['energy']
-    loudness = audio_features['loudness']
-    tempo = audio_features['tempo']
-    valence = audio_features['valence']
+    normalized_danceability = (danceability - min_danceability) / (max_danceability - min_danceability)
 
-    one_output.append(danceability)
-    one_output.append(energy)
-    one_output.append(loudness)
-    one_output.append(tempo)
-    one_output.append(valence)
+    energy = audio_features['energy']
+    normalized_energy = (energy - min_energy) / (max_energy - min_energy)
+
+    loudness = audio_features['loudness']
+    normalized_loudness = (loudness - min_loudness) / (max_loudness - min_loudness)
+
+    tempo = audio_features['tempo']
+    normalized_tempo = (tempo - min_tempo) / (max_tempo - min_tempo)
+
+    valence = audio_features['valence']
+    normalized_valence = (valence - min_valence) / (max_valence - min_valence)
+
+    one_output.append(normalized_danceability)
+    one_output.append(normalized_energy)
+    one_output.append(normalized_loudness)
+    one_output.append(normalized_tempo)
+    one_output.append(normalized_valence)
 
     outputs.append(one_output)
 
 
 outputs = np.stack(outputs)
-print(f"outputs shape: {outputs.shape}") # torch.Size([3, 6]) -> 3 songs, 6 features each
+print(f"outputs shape: {outputs.shape}") # torch.Size([50, 20]) -> 50 songs, 21 features each
 
 
-# print(f"INPUTS: {inputs}")
-# print(f"OUTPUTS: {outputs}")
+print(f"INPUTS: {inputs}")
+print(f"OUTPUTS: {outputs}")
 
-print(len(inputs) == len(outputs))
 
+assert len(inputs) == len(outputs), "length of input should equal length of output"
+
+assert np.all((outputs >= 0) & (outputs <= 1)), "each element in the output should have value between 0 and 1"
 
 
 
@@ -114,7 +170,7 @@ print(f"output shape: {output_tensor.shape}")
 
 input_size = input_tensor.shape[2] # 50
 print (f"input size {input_size}")
-output_size = output_tensor.shape[1]  # 6
+output_size = output_tensor.shape[1]  # 21
 print (f"output size {output_size}")
 
 
@@ -141,7 +197,7 @@ class LSTM(nn.Module):
         return out
 
 
-batch_size = 10
+batch_size = 20
 hidden_size = 64
 learning_rate = 0.005 # 0.001 originally
 num_epochs = 20
@@ -209,16 +265,6 @@ with torch.no_grad():
 
 print("Model Predictions:", predictions)
 
-predicted_genre = predictions[0, 0]
-print(f"predicted genre: {predicted_genre}")
-
-danceability = predictions[0, 1]
-energy = predictions[0, 2]
-loudness = predictions[0, 3]
-tempo = predictions[0, 4]
-valence = predictions[0, 5]
-
-# print((danceability, energy, loudness, tempo, valence))
 
 predicted_vector = predictions[0].numpy()
 print(f"predicted vector: {predicted_vector}")
