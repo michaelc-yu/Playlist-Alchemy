@@ -12,15 +12,15 @@ word_vectors = helpers.get_word_vectors()
 
 df = helpers.get_df('lyrics_10k.csv')
 
-genre_to_idx = helpers.get_genre_idx_map(df)
 
 # num_songs = len(df)
 # print(num_songs)
 
-df = df[:20:]
+df = df[:50:]
 num_songs = len(df)
 print(f"only looking at the first {num_songs} songs")
 
+genre_to_idx = helpers.get_genre_idx_map(df)
 
 
 # set up inputs for all songs
@@ -40,15 +40,15 @@ for i in range(num_songs):
     inputs.append(embeddings)
 
 
-max_sequence_length = max(len(input) for input in inputs)
+max_sequence_length = max(len(one_input) for one_input in inputs)
 
 print(f"max sequence length: {max_sequence_length}")
 
 padded_inputs = []
 
-for input in inputs:
-    pad_width = ((0, max_sequence_length - len(input)), (0, 0))
-    padded_input = np.pad(input, pad_width, mode='constant', constant_values=0)
+for one_input in inputs:
+    pad_width = ((0, max_sequence_length - len(one_input)), (0, 0))
+    padded_input = np.pad(one_input, pad_width, mode='constant', constant_values=0)
     padded_inputs.append(padded_input)
 
 inputs = np.stack(padded_inputs)
@@ -56,6 +56,7 @@ print(f"inputs shape: {inputs.shape}") # torch.Size([3, 390, 50]) -> 3 songs, 39
 
 
 # set up outputs for all songs
+# TODO: normalize the floats
 outputs = []
 for i in range(num_songs):
     one_output = []
@@ -89,7 +90,6 @@ for i in range(num_songs):
 
 outputs = np.stack(outputs)
 print(f"outputs shape: {outputs.shape}") # torch.Size([3, 6]) -> 3 songs, 6 features each
-
 
 
 # print(f"INPUTS: {inputs}")
@@ -141,10 +141,10 @@ class LSTM(nn.Module):
         return out
 
 
-batch_size = 5
+batch_size = 10
 hidden_size = 64
-learning_rate = 0.01 # 0.001 originally
-num_epochs = 10
+learning_rate = 0.005 # 0.001 originally
+num_epochs = 20
 num_layers = 1
 num_classes = 6
 
@@ -166,14 +166,14 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
 
         # Forward pass
-        outputs = model(input_batch)
+        model_outputs = model(input_batch)
 
         print("finished forward pass")
-        print(f"outputs: {outputs}")
-        print(f"outputs shape: {outputs.shape}")
+        print(f"model outputs: {model_outputs}")
+        print(f"model outputs shape: {model_outputs.shape}")
 
         # Calculate loss
-        loss = criterion(outputs, output_batch)
+        loss = criterion(model_outputs, output_batch)
 
         # Backpropagation and optimization
         loss.backward()
@@ -185,4 +185,59 @@ for epoch in range(num_epochs):
     # Print the average loss for the epoch
     avg_loss = total_loss / len(dataloader)
     print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {avg_loss:.4f}')
+
+
+
+user_input = input("Enter text to generate playlist with: ")
+user_tokens = helpers.tokenize(user_input)
+user_embeddings = []
+for token in user_tokens:
+    if token in word_vectors:
+        embedding = word_vectors[token]
+        user_embeddings.append(embedding)
+
+user_array = np.array(user_embeddings)
+
+user_tensor = torch.tensor(user_array).unsqueeze(0)
+print (f"user tensor shape: {user_tensor.shape}")
+
+# Pass input through the model
+model.eval()
+with torch.no_grad():
+    predictions = model(user_tensor)
+
+
+print("Model Predictions:", predictions)
+
+predicted_genre = predictions[0, 0]
+print(f"predicted genre: {predicted_genre}")
+
+danceability = predictions[0, 1]
+energy = predictions[0, 2]
+loudness = predictions[0, 3]
+tempo = predictions[0, 4]
+valence = predictions[0, 5]
+
+# print((danceability, energy, loudness, tempo, valence))
+
+predicted_vector = predictions[0].numpy()
+print(f"predicted vector: {predicted_vector}")
+
+# Calculate Euclidean distance between predicted vector and each vector in our dataset
+distances = np.linalg.norm(outputs - predicted_vector, axis=1)
+
+closest_indices = np.argsort(distances)[:5]
+print (f"closest indices: {closest_indices}")
+
+
+for index in closest_indices:
+    print(df.iloc[index]['song'])
+    print(df.iloc[index]['artists'])
+    print(outputs[index])
+
+
+print("---")
+
+closest_vectors = outputs[closest_indices]
+print (f"closest vectors: {closest_vectors}")
 
