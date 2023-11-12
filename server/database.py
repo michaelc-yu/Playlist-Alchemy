@@ -28,7 +28,7 @@ word_vectors = helpers.get_word_vectors()
 df = pd.read_csv('../lyrics_10k.csv')
 
 
-df = df[:10:]
+df = df[:2000:]
 num_songs = len(df)
 print(f"only looking at the first {num_songs} songs")
 
@@ -70,11 +70,11 @@ def get_lyric_embeddings():
 def get_feature_embeddings():
     """Return embeddings of features for each song as training data for the model."""
     # give each song a score on these features, based on how often those words occur / total number of words in genre string
-    key_genres = ['blues', 'dance', 'folk', 'hip', 'hop', 'indie', 'jazz', 'k-pop', 'lilith', 'metal', 'pop', 'rap', 'rock', 'soul', 'trap', 'wave']
+    key_genres = ['blues', 'dance', 'folk', 'hip', 'hop', 'indie', 'jazz', 'k-pop', 'lilith', 'metal', 'pop', 'rap', 'rock', 'soul', 'trap', 'wave'] #  16 genres
     outputs = []
+
     for i in range(num_songs):
         one_output = []
-
         song_genres = df.iloc[i]['genres']
 
         if isinstance(song_genres, str):
@@ -92,36 +92,92 @@ def get_feature_embeddings():
             for genre in key_genres:
                 one_output.append(0)
 
-
-        # audio features
-        song_id = df.iloc[i]['song_id'].split(':')[2]
-        audio_features = spotify.audio_features([song_id])[0]
-
-        danceability = audio_features['danceability']
-        normalized_danceability = (danceability - MIN_DANCEABILITY) / (MAX_DANCEABILITY - MIN_DANCEABILITY)
-
-        energy = audio_features['energy']
-        normalized_energy = (energy - MIN_ENERGY) / (MAX_ENERGY - MIN_ENERGY)
-
-        loudness = audio_features['loudness']
-        normalized_loudness = (loudness - MIN_LOUDNESS) / (MAX_LOUDNESS - MIN_LOUDNESS)
-
-        tempo = audio_features['tempo']
-        normalized_tempo = (tempo - MIN_TEMPO) / (MAX_TEMPO - MIN_TEMPO)
-
-        valence = audio_features['valence']
-        normalized_valence = (valence - MIN_VALENCE) / (MAX_VALENCE - MIN_VALENCE)
-
-        one_output.append(normalized_danceability)
-        one_output.append(normalized_energy)
-        one_output.append(normalized_loudness)
-        one_output.append(normalized_tempo)
-        one_output.append(normalized_valence)
-
         outputs.append(one_output)
 
+    tracks = []
+    audio_features_arr = []
+    for i in range(num_songs):
+        # audio features
+        song_id = df.iloc[i]['song_id'].split(':')[2]
+
+        tracks.append(song_id)
+        if len(tracks) == 100:
+            print ("making a spotify api call")
+            print (f"tracks: {tracks}")
+            audio_features = spotify.audio_features(tracks=tracks)
+            print (f"audio_features: {audio_features}")
+            print (f"length audio features: {len(audio_features)}")
+
+            for j in range(len(audio_features)):
+                one_audio_feature = {}
+                danceability = audio_features[j]['danceability']
+                normalized_danceability = (danceability - MIN_DANCEABILITY) / (MAX_DANCEABILITY - MIN_DANCEABILITY)
+
+                energy = audio_features[j]['energy']
+                normalized_energy = (energy - MIN_ENERGY) / (MAX_ENERGY - MIN_ENERGY)
+
+                loudness = audio_features[j]['loudness']
+                normalized_loudness = (loudness - MIN_LOUDNESS) / (MAX_LOUDNESS - MIN_LOUDNESS)
+
+                tempo = audio_features[j]['tempo']
+                normalized_tempo = (tempo - MIN_TEMPO) / (MAX_TEMPO - MIN_TEMPO)
+
+                valence = audio_features[j]['valence']
+                normalized_valence = (valence - MIN_VALENCE) / (MAX_VALENCE - MIN_VALENCE)
+
+                one_audio_feature['danceability'] = normalized_danceability
+                one_audio_feature['energy'] = normalized_energy
+                one_audio_feature['loudness'] = normalized_loudness
+                one_audio_feature['tempo'] = normalized_tempo
+                one_audio_feature['valence'] = normalized_valence
+
+                audio_features_arr.append(one_audio_feature)
+            tracks.clear()
+
+    print (f"audio features array: {audio_features_arr}")
+
+    assert len(outputs) == len(audio_features_arr), "length of outputs should equal length of audio features array"
+
+    for i in range(len(audio_features_arr)):
+        one_output = []
+
+        danceability = audio_features_arr[i]['danceability']
+        if danceability > 1:
+            danceability = 1
+        if danceability < 0:
+            danceability = 0
+        energy = audio_features_arr[i]['energy']
+        if energy > 1:
+            energy = 1
+        if energy < 0:
+            energy = 0
+        loudness = audio_features_arr[i]['loudness']
+        if loudness > 1:
+            loudness = 1
+        if loudness < 0:
+            loudness = 0
+        tempo = audio_features_arr[i]['tempo']
+        if tempo > 1:
+            tempo = 1
+        if tempo < 0:
+            tempo = 0
+        valence = audio_features_arr[i]['valence']
+        if valence > 1:
+            valence = 1
+        if valence < 0:
+            valence = 0
+
+        one_output.append(danceability)
+        one_output.append(energy)
+        one_output.append(loudness)
+        one_output.append(tempo)
+        one_output.append(valence)
+
+        outputs[i].extend(one_output)
+
+
     outputs = np.stack(outputs)
-    print(f"outputs shape: {outputs.shape}") # torch.Size([50, 20]) -> 50 songs, 21 features each
+    print(f"outputs shape: {outputs.shape}") # torch.Size([x, 21]) -> x songs, 21 features each
 
     return outputs
 
@@ -151,7 +207,4 @@ def get_predictions(closest_indices, outputs):
         print(outputs[index])
 
         print("---")
-
-        closest_vectors = outputs[closest_indices]
-        print (f"closest vectors: {closest_vectors}")
 

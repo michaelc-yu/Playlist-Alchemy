@@ -27,22 +27,6 @@ def tokenize(text):
     pattern = re.compile(r'[A-Za-z]+[\w^\']*|[\w^\']*[A-Za-z]+[\w^\']*')
     return pattern.findall(text_without_apostrophies.lower())
 
-# def get_genre_idx_map(df):
-#     num_songs = len(df)
-#     s = set()
-
-#     for i in range(num_songs):
-#         genres = df.iloc[i]['genres']
-#         s.add(str(genres))
-
-#     print(f"num combination of genres: {len(s)}")
-
-#     genre_to_idx = {}
-#     for i, genre in enumerate(s):
-#         genre_to_idx[genre] = i
-
-#     return genre_to_idx
-
 # def query_features(df, spotify):
 #     danceability = []
 #     energy = []

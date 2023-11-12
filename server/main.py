@@ -15,8 +15,8 @@ import database
 inputs = database.get_lyric_embeddings()
 outputs = database.get_feature_embeddings()
 
-# print(f"INPUTS: {inputs}")
-# print(f"OUTPUTS: {outputs}")
+print(f"INPUTS: {inputs}")
+print(f"OUTPUTS: {outputs}")
 
 assert len(inputs) == len(outputs), "length of input should equal length of output"
 assert np.all((outputs >= 0) & (outputs <= 1)), "each element in the output should have value between 0 and 1"
@@ -30,7 +30,6 @@ output_tensor = torch.tensor(outputs, dtype=torch.float32)
 print(f"output tensor: {output_tensor}")
 print(f"output shape: {output_tensor.shape}")
 
-
 input_size = input_tensor.shape[2] # 50
 print (f"input size {input_size}")
 output_size = output_tensor.shape[1]  # 21
@@ -38,11 +37,10 @@ print (f"output size {output_size}")
 
 
 
-
 # Initialize hyperparameters for model training
-batch_size = 2
+batch_size = 200
 hidden_size = 64
-learning_rate = 0.005 # 0.001 originally
+learning_rate = 0.001 # 0.001 originally
 num_epochs = 20
 num_layers = 1
 num_classes = 6
@@ -107,8 +105,10 @@ print(f"predicted vector: {predicted_vector}")
 # Calculate Euclidean distance between predicted vector and each vector in our dataset
 distances = np.linalg.norm(outputs - predicted_vector, axis=1)
 
-closest_indices = np.argsort(distances)[:5]
+closest_indices = np.argsort(distances)[:3] # get the 5 closest indices (adjust if necessary)
 print (f"closest indices: {closest_indices}")
+print ("")
+print ("")
 
 
 database.get_predictions(closest_indices=closest_indices, outputs=outputs)
