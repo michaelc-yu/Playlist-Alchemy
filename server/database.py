@@ -33,11 +33,11 @@ num_songs = len(df)
 print(f"only looking at the first {num_songs} songs")
 
 
-# audio features
 spotify = helpers.authenticate_spotify()
 
 
 def get_lyric_embeddings():
+    """Return embeddings for all song lyrics as training data for model."""
     inputs = []
     for i in range(num_songs):
         lyrics = df.iloc[i]['lyrics']
@@ -68,6 +68,7 @@ def get_lyric_embeddings():
 
 
 def get_feature_embeddings():
+    """Return embeddings of features for each song as training data for the model."""
     # give each song a score on these features, based on how often those words occur / total number of words in genre string
     key_genres = ['blues', 'dance', 'folk', 'hip', 'hop', 'indie', 'jazz', 'k-pop', 'lilith', 'metal', 'pop', 'rap', 'rock', 'soul', 'trap', 'wave']
     outputs = []
@@ -126,6 +127,7 @@ def get_feature_embeddings():
 
 
 def get_user_tensor(user_input):
+    """Generate a tensor object from the user input string."""
     user_tokens = helpers.tokenize(user_input)
     user_embeddings = []
     for token in user_tokens:
@@ -140,6 +142,7 @@ def get_user_tensor(user_input):
 
 
 def get_predictions(closest_indices, outputs):
+    """Generate song predictions based on closest Euclidean distance between vectors."""
     for index in closest_indices:
         print(df.iloc[index]['song'])
         print(df.iloc[index]['artists'])

@@ -1,6 +1,5 @@
 import os
 import re
-import pandas as pd
 import numpy as np
 
 import spotipy
@@ -9,6 +8,7 @@ from gensim.models import KeyedVectors
 
 
 def authenticate_spotify():
+    """Authenticate with Spotify API using the secret access tokens."""
     client_id = os.environ["client_id_key"]
     client_secret = os.environ["client_secret_key"]
     redirect_uri = "http://localhost:3000"
@@ -16,15 +16,13 @@ def authenticate_spotify():
     spotify = spotipy.Spotify(auth_manager=auth_manager)
     return spotify
 
-# def get_df(path):
-#     df = pd.read_csv(path)
-#     return df
-
 def get_word_vectors():
+    """Get word vector embeddings from the GloVe dataset."""
     word_vectors = KeyedVectors.load_word2vec_format('../glove.6B/glove.6B.50d.txt', binary=False)
     return word_vectors
 
 def tokenize(text):
+    """Get tokens array from an input string."""
     text_without_apostrophies = re.sub(r"'", '', text)
     pattern = re.compile(r'[A-Za-z]+[\w^\']*|[\w^\']*[A-Za-z]+[\w^\']*')
     return pattern.findall(text_without_apostrophies.lower())

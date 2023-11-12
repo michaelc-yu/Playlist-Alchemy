@@ -6,7 +6,6 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
 
 
-# Model
 
 class LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, num_layers):
@@ -32,6 +31,7 @@ class LSTM(nn.Module):
 
 
 def get_model(input_size, hidden_size, output_size, num_layers):
+    """Instantiate a LSTM object and return it."""
     model = LSTM(input_size, hidden_size, output_size, num_layers=num_layers)
     return model
 
