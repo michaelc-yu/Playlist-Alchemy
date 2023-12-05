@@ -22,7 +22,7 @@ class LSTM(nn.Module):
         c_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))  # cell state
 
         output, (hn, cn) = self.lstm(x, (h_0, c_0))
-        hn = hn.view(-1, self.hidden_size)
+        hn = hn[-1, :, :]
         out = self.relu(hn)
         out = self.fc1(out)  # first FC layer
         out = self.relu(out)  # ReLU

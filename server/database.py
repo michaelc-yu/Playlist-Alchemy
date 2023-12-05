@@ -28,9 +28,8 @@ word_vectors = helpers.get_word_vectors()
 df = pd.read_csv('../lyrics_10k.csv')
 
 
-df = df[:2000:]
-num_songs = len(df)
-print(f"only looking at the first {num_songs} songs")
+MAX_SONGS = 100
+df = df[:MAX_SONGS:]
 
 
 spotify = helpers.authenticate_spotify()
@@ -52,7 +51,7 @@ def get_lyric_embeddings():
         inputs.append(embeddings)
 
     max_sequence_length = max(len(one_input) for one_input in inputs)
-    print(f"max sequence length: {max_sequence_length}")
+    # print(f"max sequence length: {max_sequence_length}")
 
     padded_inputs = []
 
@@ -62,7 +61,7 @@ def get_lyric_embeddings():
         padded_inputs.append(padded_input)
 
     inputs = np.stack(padded_inputs)
-    print(f"inputs shape: {inputs.shape}") # torch.Size([3, 390, 50]) -> 3 songs, 390 is the max words in lyrics, 50 floats for each word as the vector embedding
+    # print(f"inputs shape: {inputs.shape}") # torch.Size([3, 390, 50]) -> 3 songs, 390 is the max words in lyrics, 50 floats for each word as the vector embedding
     
     return inputs
 
@@ -80,7 +79,7 @@ def get_feature_embeddings():
         if isinstance(song_genres, str):
             song_genres = re.split(r'[; ]', song_genres)
             song_genres = [word for word in song_genres if word in key_genres]
-            print(f"genres: {song_genres}")
+            # print(f"genres: {song_genres}")
 
             for genre in key_genres:
                 if len(song_genres) > 0:
@@ -102,11 +101,11 @@ def get_feature_embeddings():
 
         tracks.append(song_id)
         if len(tracks) == 100:
-            print ("making a spotify api call")
-            print (f"tracks: {tracks}")
+            # print ("making a spotify api call")
+            # print (f"tracks: {tracks}")
             audio_features = spotify.audio_features(tracks=tracks)
-            print (f"audio_features: {audio_features}")
-            print (f"length audio features: {len(audio_features)}")
+            # print (f"audio_features: {audio_features}")
+            # print (f"length audio features: {len(audio_features)}")
 
             for j in range(len(audio_features)):
                 one_audio_feature = {}
@@ -134,7 +133,7 @@ def get_feature_embeddings():
                 audio_features_arr.append(one_audio_feature)
             tracks.clear()
 
-    print (f"audio features array: {audio_features_arr}")
+    # print (f"audio features array: {audio_features_arr}")
 
     assert len(outputs) == len(audio_features_arr), "length of outputs should equal length of audio features array"
 
@@ -177,7 +176,7 @@ def get_feature_embeddings():
 
 
     outputs = np.stack(outputs)
-    print(f"outputs shape: {outputs.shape}") # torch.Size([x, 21]) -> x songs, 21 features each
+    # print(f"outputs shape: {outputs.shape}") # torch.Size([x, 21]) -> x songs, 21 features each
 
     return outputs
 
@@ -199,12 +198,16 @@ def get_user_tensor(user_input):
 
 def get_predictions(closest_indices, outputs):
     """Generate song predictions based on closest Euclidean distance between vectors."""
-    for index in closest_indices:
+    for i, index in enumerate(closest_indices):
+        print("---")
+        print(f"{i+1}:")
         print(df.iloc[index]['song'])
         print(df.iloc[index]['artists'])
-        print(df.iloc[index]['song_id'].split(':')[2])
 
-        print(outputs[index])
+        # print(outputs[index])
 
-        print("---")
-
+    uris = []
+    for index in closest_indices:
+        uri = df.iloc[index]['song_id']
+    
+    return uris
