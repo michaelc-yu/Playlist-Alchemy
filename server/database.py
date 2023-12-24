@@ -30,7 +30,7 @@ df = pd.read_csv('../lyrics_10k.csv')
 
 MAX_SONGS = 100
 df = df[:MAX_SONGS:]
-
+num_songs = MAX_SONGS
 
 spotify = helpers.authenticate_spotify()
 

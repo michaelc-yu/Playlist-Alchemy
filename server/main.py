@@ -6,6 +6,12 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.autograd import Variable
 
+import json
+import requests
+import sys
+import os
+import base64
+
 import model
 import database
 
@@ -15,34 +21,34 @@ import database
 inputs = database.get_lyric_embeddings()
 outputs = database.get_feature_embeddings()
 
-print(f"INPUTS: {inputs}")
-print(f"OUTPUTS: {outputs}")
+# print(f"INPUTS: {inputs}")
+# print(f"OUTPUTS: {outputs}")
 
 assert len(inputs) == len(outputs), "length of input should equal length of output"
 assert np.all((outputs >= 0) & (outputs <= 1)), "each element in the output should have value between 0 and 1"
 
 
 input_tensor = torch.tensor(inputs, dtype=torch.float32)
-print(f"input tensor: {input_tensor}")
-print(f"input shape: {input_tensor.shape}")
+# print(f"input tensor: {input_tensor}")
+# print(f"input shape: {input_tensor.shape}")
 
 output_tensor = torch.tensor(outputs, dtype=torch.float32)
-print(f"output tensor: {output_tensor}")
-print(f"output shape: {output_tensor.shape}")
+# print(f"output tensor: {output_tensor}")
+# print(f"output shape: {output_tensor.shape}")
 
 input_size = input_tensor.shape[2] # 50
-print (f"input size {input_size}")
+# print (f"input size {input_size}")
 output_size = output_tensor.shape[1]  # 21
-print (f"output size {output_size}")
+# print (f"output size {output_size}")
 
 
 
 # Initialize hyperparameters for model training
-batch_size = 200
+batch_size = 20
 hidden_size = 64
 learning_rate = 0.001 # 0.001 originally
-num_epochs = 20
-num_layers = 1
+num_epochs = 10
+num_layers = 6
 num_classes = 6
 
 # Instantiate objects used for model training and eval
@@ -57,23 +63,28 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 for epoch in range(num_epochs):
     total_loss = 0.0
     for input_batch, output_batch in dataloader:
-        print (f"input batch: {input_batch}")
-        print(f"output batch: {output_batch}")
+        # print (f"input batch: {input_batch}")
+        # print(f"output batch: {output_batch}")
         # Zero the gradients
         optimizer.zero_grad()
 
         # Forward pass
         model_outputs = model(input_batch)
 
-        print("finished forward pass")
-        print(f"model outputs: {model_outputs}")
-        print(f"model outputs shape: {model_outputs.shape}")
+        # print("finished forward pass")
+        # print(f"model outputs: {model_outputs}")
+        # print(f"model outputs shape: {model_outputs.shape}")
 
         # Calculate loss
+        # print("calculating loss")
+        # print(model_outputs.shape)
+        # print(output_batch.shape)
         loss = criterion(model_outputs, output_batch)
 
         # Backpropagation and optimization
+        # print("backprop")
         loss.backward()
+        # print("optimization")
         optimizer.step()
 
         # Accumulate loss
@@ -85,10 +96,11 @@ for epoch in range(num_epochs):
 
 
 # Get user input
-user_input = input("Enter text to generate playlist with: ")
+user_input = sys.argv[1]
+# user_input = input("Enter text to generate playlist with: ")
 
 user_tensor = database.get_user_tensor(user_input)
-print (f"user tensor shape: {user_tensor.shape}")
+# print (f"user tensor shape: {user_tensor.shape}")
 
 # Pass input through the model to get predictions
 model.eval()
@@ -96,20 +108,20 @@ with torch.no_grad():
     predictions = model(user_tensor)
 
 
-print("Model Predictions:", predictions)
+# print("Model Predictions:", predictions)
 
 
 predicted_vector = predictions[0].numpy()
-print(f"predicted vector: {predicted_vector}")
+# print(f"predicted vector: {predicted_vector}")
 
 # Calculate Euclidean distance between predicted vector and each vector in our dataset
 distances = np.linalg.norm(outputs - predicted_vector, axis=1)
 
-closest_indices = np.argsort(distances)[:3] # get the 5 closest indices (adjust if necessary)
-print (f"closest indices: {closest_indices}")
-print ("")
-print ("")
+closest_indices = np.argsort(distances)[:5] # get the 5 closest indices (adjust if necessary)
+# print (f"closest indices: {closest_indices}")
+# print ("")
+# print ("")
 
 
-database.get_predictions(closest_indices=closest_indices, outputs=outputs)
+uris = database.get_predictions(closest_indices=closest_indices, outputs=outputs)
 
